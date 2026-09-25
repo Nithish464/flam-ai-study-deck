@@ -1,72 +1,207 @@
 // validateResult.js
 //
-// Never trust the network. Even though the server already validates the
-// model's output, this file re-checks the shape on the client before a
-// single pixel of the parsed data reaches a component. If the server is
-// swapped, buggy, or someone points this frontend at a different backend
-// entirely, a malformed payload still can't reach the UI.
-//
-// Returns { valid: true, data } or { valid: false, reason }.
+// Never trust the network.
+// Validate the complete response before it reaches the UI.
 
-function isNonEmptyString(v) {
-  return typeof v === "string" && v.trim().length > 0;
+function isNonEmptyString(value) {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0
+  );
+}
+
+function shuffle(array) {
+  const result = [...array];
+
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(
+      Math.random() * (i + 1)
+    );
+
+    [result[i], result[j]] = [
+      result[j],
+      result[i]
+    ];
+  }
+
+  return result;
+}
+
+function getStudySet(payload) {
+  // Normal backend response:
+  // { topic, cards }
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray(payload.cards)
+  ) {
+    return payload;
+  }
+
+  // Also support:
+  // { data: { topic, cards } }
+
+  if (
+    payload?.data &&
+    typeof payload.data === "object" &&
+    Array.isArray(payload.data.cards)
+  ) {
+    return payload.data;
+  }
+
+  // Also support:
+  // { result: { topic, cards } }
+
+  if (
+    payload?.result &&
+    typeof payload.result === "object" &&
+    Array.isArray(payload.result.cards)
+  ) {
+    return payload.result;
+  }
+
+  return null;
 }
 
 export function validateResult(payload) {
-  if (!payload || typeof payload !== "object") {
-    return { valid: false, reason: "Response was not an object." };
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    Array.isArray(payload)
+  ) {
+    return {
+      valid: false,
+      reason: "Response was not a valid object."
+    };
   }
 
-  if (!Array.isArray(payload.cards)) {
-    return { valid: false, reason: "Response had no 'cards' array." };
+  const studySet = getStudySet(payload);
+
+  if (!studySet) {
+    return {
+      valid: false,
+      reason:
+        "The server response did not contain a valid study set."
+    };
   }
 
-  if (payload.cards.length === 0) {
-    return { valid: false, reason: "Response had zero cards." };
+  if (!Array.isArray(studySet.cards)) {
+    return {
+      valid: false,
+      reason:
+        "Response had no valid 'cards' array."
+    };
+  }
+
+  if (studySet.cards.length === 0) {
+    return {
+      valid: false,
+      reason:
+        "The study set contained zero cards."
+    };
   }
 
   const cards = [];
-  for (const raw of payload.cards) {
-    if (!isNonEmptyString(raw?.question)) {
-      return { valid: false, reason: "A card was missing a question." };
+
+  for (
+    let index = 0;
+    index < studySet.cards.length;
+    index++
+  ) {
+    const raw = studySet.cards[index];
+
+    if (
+      !raw ||
+      typeof raw !== "object"
+    ) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1} was invalid.`
+      };
     }
-    if (!isNonEmptyString(raw?.answer)) {
-      return { valid: false, reason: "A card was missing an answer." };
+
+    if (!isNonEmptyString(raw.question)) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1} was missing a question.`
+      };
     }
-    if (!Array.isArray(raw?.options) || raw.options.length !== 4) {
-      return { valid: false, reason: "A card did not have exactly 4 options." };
+
+    if (!isNonEmptyString(raw.answer)) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1} was missing an answer.`
+      };
     }
-    if (!raw.options.every(isNonEmptyString)) {
-      return { valid: false, reason: "A card had an empty option." };
+
+    if (
+      !Array.isArray(raw.options) ||
+      raw.options.length !== 4
+    ) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1} must contain exactly 4 options.`
+      };
     }
-    if (!raw.options.includes(raw.answer)) {
-      return { valid: false, reason: "A card's options did not include its answer." };
+
+    if (
+      !raw.options.every(isNonEmptyString)
+    ) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1} contains an empty option.`
+      };
     }
+
+    const question =
+      raw.question.trim();
+
+    const answer =
+      raw.answer.trim();
+
+    const options =
+      raw.options.map(
+        (option) => option.trim()
+      );
+
+    if (!options.includes(answer)) {
+      return {
+        valid: false,
+        reason:
+          `Card ${index + 1}'s answer does not match any option.`
+      };
+    }
+
     cards.push({
-      id: isNonEmptyString(raw.id) ? raw.id : `card-${cards.length}-${Math.random().toString(36).slice(2, 8)}`,
-      question: raw.question.trim(),
-      answer: raw.answer.trim(),
-      // Shuffle once here so option order is stable for the life of this
-      // card (re-shuffling on every render would make quiz answers jump
-      // around while the user is looking at them).
-      options: shuffle(raw.options.map((o) => o.trim())),
+      id:
+        isNonEmptyString(raw.id)
+          ? raw.id
+          : `card-${index + 1}`,
+
+      question,
+
+      answer,
+
+      options: shuffle(options)
     });
   }
 
   return {
     valid: true,
-    data: {
-      topic: isNonEmptyString(payload.topic) ? payload.topic.trim() : "Study set",
-      cards,
-    },
-  };
-}
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+    data: {
+      topic:
+        isNonEmptyString(studySet.topic)
+          ? studySet.topic.trim()
+          : "Study set",
+
+      cards
+    }
+  };
 }
