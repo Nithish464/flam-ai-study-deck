@@ -1,5 +1,11 @@
 # Study Deck
 
+## 🚀 Live Demo
+
+🔗 **[Try the Live Study Deck](https://flam-ai-study-deck-client.vercel.app/)**
+
+The application is deployed and available for live testing.
+
 A small React app that turns free-form notes or a topic into an interactive
 flashcard deck and quiz — built for the Flam frontend internship assignment
 ("Study assistant" option).
