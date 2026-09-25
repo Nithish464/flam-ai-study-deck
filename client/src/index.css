@@ -1,0 +1,57 @@
+:root {
+  /* --- Palette: a study-desk feel — cool stone paper, ink, and a single
+     warm marker-pen accent. Deliberately not the cream+terracotta default. */
+  --paper: #eef1ec;
+  --paper-raised: #ffffff;
+  --ink: #1f2a1f;
+  --ink-soft: #4b5a4b;
+  --line: #d3d9cf;
+  --accent: #c9862e; /* marker-pen amber, used sparingly */
+  --accent-ink: #6b4416;
+  --good: #2f6f5e;
+  --good-bg: #e4efe9;
+  --bad: #a8482d;
+  --bad-bg: #f5e6e0;
+
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
